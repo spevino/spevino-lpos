@@ -1,6 +1,28 @@
 # Spevino Loss Prevention Operating System
 
-A **Loss Prevention Operating System (LP-OS)** — a real-time video surveillance platform that detects shoplifting, restricted area breaches, and suspicious behavior at retail stores and gas stations using computer vision, sends SMS alerts to store owners, and provides a web dashboard for live monitoring.
+[![Install](https://img.shields.io/badge/Install-One--Click-blue)](install.sh)
+[![License](https://img.shields.io/badge/License-Proprietary-red)](LICENSE)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED)](docker-compose.yml)
+
+A **Loss Prevention Operating System (LP-OS)** — a real-time AI-powered surveillance platform that detects shoplifting, restricted area breaches, and cash register theft at retail stores and gas stations using computer vision. Sends SMS alerts and provides a web dashboard for live monitoring.
+
+## 🚀 Quick Install
+
+```bash
+curl -fsSL https://github.com/spevino/spevino-lpos/raw/main/install.sh | bash
+```
+
+The installer: Installs Docker → Clones repo → Builds images → Starts services → Dashboard at **http://localhost:3000**
+
+## 📋 Subscription
+
+| Tier | Detection | SMS Alerts | Dashboard |
+|------|-----------|------------|-----------|
+| **Trial** (14 days) | ❌ Paused | ❌ Paused | ✅ |
+| **Active** | ✅ | ✅ | ✅ |
+| **Expired** | ❌ Paused | ❌ Paused | ✅ |
+
+Activate: `POST /license/activate` with your license key. Without payment, the system pauses CV detection and SMS alerts.
 
 ## Architecture
 

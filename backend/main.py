@@ -4,7 +4,7 @@ from typing import List, Optional
 import json
 import datetime
 
-import schemas, crud, auth, sms
+import schemas, crud, auth, sms, license
 
 app = FastAPI(title="Spevino API")
 
@@ -58,6 +58,27 @@ async def refresh_token(current_user: dict = Depends(get_current_user)):
 async def read_users_me(current_user: dict = Depends(get_current_user)):
     return current_user
 
+# License / Subscription Management
+@app.get("/license")
+def get_license_status():
+    """Get current license status."""
+    return license.license_manager.get_status_info()
+
+@app.post("/license/activate")
+def activate_license(key_data: dict):
+    """Activate system with a license key."""
+    key = key_data.get('key', '')
+    if not key:
+        raise HTTPException(status_code=400, detail="License key required")
+    status = license.license_manager.validate(key)
+    if status == license.LicenseStatus.ACTIVE:
+        return {"status": "ok", "message": "License activated!", "license": license.license_manager.get_status_info()}
+    elif status == license.LicenseStatus.INVALID:
+        raise HTTPException(status_code=400, detail="Invalid license key")
+    elif status == license.LicenseStatus.EXPIRED:
+        raise HTTPException(status_code=400, detail="License expired")
+    raise HTTPException(status_code=400, detail=f"Status: {status}")
+
 # Stores
 @app.get("/stores", response_model=List[schemas.Store])
 def read_stores(current_user: dict = Depends(get_current_user)):
@@ -97,6 +118,13 @@ def read_events(store_id: Optional[str] = None, camera_id: Optional[str] = None,
 
 @app.post("/events", response_model=schemas.Event)
 async def create_event(event: schemas.EventCreate, background_tasks: BackgroundTasks):
+    # License check — if detection is paused, reject events
+    if not license.license_manager.can_detect:
+        raise HTTPException(
+            status_code=402,  # Payment Required
+            detail="⚠️ Subscription inactive. CV detection is paused. Please activate your license at /license/activate"
+        )
+    
     db_event = crud.create_event(event_schema=event)
     
     # Broadcast via WebSocket
@@ -105,8 +133,8 @@ async def create_event(event: schemas.EventCreate, background_tasks: BackgroundT
         "data": db_event
     }))
 
-    # Trigger SMS alert if confidence is high
-    if db_event['confidence'] >= 0.75:
+    # Trigger SMS alert if confidence is high (only if license allows alerts)
+    if db_event['confidence'] >= 0.75 and license.license_manager.can_alert:
         background_tasks.add_task(process_alerts, db_event['id'])
     
     return db_event
