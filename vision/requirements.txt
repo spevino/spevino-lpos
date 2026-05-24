@@ -1,0 +1,31 @@
+# Spevino Vision - Computer Vision Detection Pipeline
+# Requirements for CV pipeline components
+
+# Core dependencies
+ultralytics>=8.0.0        # YOLOv8 object detection
+opencv-python>=4.8.0      # Video processing and image manipulation
+numpy>=1.24.0             # Numerical operations
+
+# Motion tracking
+# ByteTrack - uncomment when available on PyPI
+# bytetrack>=0.1.0
+
+# Optional: Deep learning acceleration
+# onnxruntime>=1.15.0      # CPU inference (faster startup than PyTorch)
+# torch>=2.0.0             # GPU inference support
+
+# Video processing
+# av>=10.0.0               # Alternative video decoding (optional)
+# ffmpeg-python>=0.2.0     # FFmpeg wrapper (optional)
+
+# HTTP client for webhook output
+aiohttp>=3.8.0            # Async HTTP for webhook output
+requests>=2.31.0          # Sync HTTP for webhook output
+
+# Utilities
+python-dateutil>=2.8.0    # Date/time utilities
+Pillow>=10.0.0            # Image processing for thumbnails
+
+# Development dependencies
+pytest>=7.4.0              # Testing framework
+pytest-cov>=4.1.0         # Coverage reporting

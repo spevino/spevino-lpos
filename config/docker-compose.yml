@@ -1,0 +1,56 @@
+# Spevino Edge Deployment
+# Deploy this docker-compose.yml on each store's edge processor (on-premises NVR)
+
+version: "3.8"
+
+services:
+  # ─────────────────────────────────────────────────────────────
+  # Edge Agent — streams video and runs local CV inference
+  # ─────────────────────────────────────────────────────────────
+  edge-agent:
+    image: spevino/edge-agent:latest
+    container_name: spevino-edge-agent
+    devices:
+      - /dev/video0:/dev/video0  # Local capture devices (optional)
+    environment:
+      - API_BASE_URL=${API_BASE_URL}       # e.g., https://api.spevino.com
+      - STORE_ID=${STORE_ID}                 # Unique store UUID
+      - CAMERA_IDS=${CAMERA_IDS}             # Comma-separated camera IDs
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - DETECTION_THRESHOLD=0.75
+      - MODEL_PATH=/app/models/yolov8n.pt
+    volumes:
+      - ./config:/app/config                 # Camera configs, detection zones
+      - ./clips:/app/clips                   # Local clip storage
+      - ./models:/app/models                 # YOLOv8 model weights
+    network_mode: host                        # Direct network access for cameras
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─────────────────────────────────────────────────────────────
+  # Optional: Local NVR Recording (for clip archival)
+  # ─────────────────────────────────────────────────────────────
+  nvr:
+    image: spevino/nvr:latest
+    container_name: spevino-nvr
+    environment:
+      - STORE_ID=${STORE_ID}
+      - RETENTION_DAYS=3                     # Auto-delete clips after N days
+    volumes:
+      - nvr_recordings:/ recordings
+      - ./config/cameras.yml:/app/config/cameras.yml
+    network_mode: host
+    restart: unless-stopped
+
+networks:
+  default:
+    driver: bridge
+
+volumes:
+  nvr_recordings:
