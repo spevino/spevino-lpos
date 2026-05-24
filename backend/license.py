@@ -27,17 +27,69 @@ class LicenseStatus:
     INVALID = "invalid"
     DISABLED = "disabled"
 
+# 5-Tier Subscription Model — from approved business plan
+class Tier:
+    SOLO = "solo"           # $49/mo  — 1 store, 2 cams, basic detection
+    PRO = "pro"             # $149/mo — 1 store, 6 cams, +SMS, +restricted area
+    BUSINESS = "business"   # $399/mo — 3 stores, 15 cams, +cash register, +multi-store
+    ENTERPRISE = "enterprise"    # $999/mo — 10 stores, 50 cams, +custom zones, +badge
+    ENTERPRISE_PLUS = "enterprise_plus"  # $2,999/mo — unlimited, white-label, SLA
+
+TIER_FEATURES = {
+    Tier.SOLO: {
+        "max_stores": 1,
+        "max_cameras": 2,
+        "features": ["dashboard", "concealment_detection", "trajectory_detection", "object_abandonment"],
+        "price": 49,
+    },
+    Tier.PRO: {
+        "max_stores": 1,
+        "max_cameras": 6,
+        "features": ["dashboard", "concealment_detection", "trajectory_detection", 
+                     "object_abandonment", "sms_alerts", "restricted_area_detection", "wrong_way_flow"],
+        "price": 149,
+    },
+    Tier.BUSINESS: {
+        "max_stores": 3,
+        "max_cameras": 15,
+        "features": ["dashboard", "concealment_detection", "trajectory_detection",
+                     "object_abandonment", "sms_alerts", "restricted_area_detection",
+                     "wrong_way_flow", "register_theft_detection", "multi_store", "api_access"],
+        "price": 399,
+    },
+    Tier.ENTERPRISE: {
+        "max_stores": 10,
+        "max_cameras": 50,
+        "features": ["dashboard", "concealment_detection", "trajectory_detection",
+                     "object_abandonment", "sms_alerts", "restricted_area_detection",
+                     "wrong_way_flow", "register_theft_detection", "multi_store", "api_access",
+                     "custom_detection_zones", "employee_badge_integration", "dedicated_support"],
+        "price": 999,
+    },
+    Tier.ENTERPRISE_PLUS: {
+        "max_stores": 9999,
+        "max_cameras": 9999,
+        "features": ["dashboard", "concealment_detection", "trajectory_detection",
+                     "object_abandonment", "sms_alerts", "restricted_area_detection",
+                     "wrong_way_flow", "register_theft_detection", "multi_store", "api_access",
+                     "custom_detection_zones", "employee_badge_integration", "dedicated_support",
+                     "white_label", "on_prem_deployment", "sla", "custom_model_training"],
+        "price": 2999,
+    },
+}
+
 class LicenseManager:
     """
     Manages software licensing for the Spevino LP-OS.
     
     License format: spevino-XXXX-XXXX-XXXX-XXXX
-    Each license has: customer, max_stores, max_cameras, expiry_date, features
+    Each license has: customer, tier, max_stores, max_cameras, expiry_date, features
     """
     
     def __init__(self):
         self._status = LicenseStatus.DISABLED
         self._license_data: Optional[Dict] = None
+        self._tier: str = Tier.SOLO  # Default to Solo during grace
         self._installed_at: Optional[datetime] = None
         self._last_check: Optional[datetime] = None
         
@@ -90,22 +142,23 @@ class LicenseManager:
             hashlib.sha256
         ).hexdigest()[:16]
     
-    def generate_license(self, customer: str, max_stores: int, max_cameras: int, 
-                         expiry_days: int = 365, features: list = None) -> str:
+    def generate_license(self, customer: str, tier: str = Tier.PRO,
+                             expiry_days: int = 365) -> str:
         """
-        Generate a signed license key for a customer.
-        This would be called by the licensing server, not by the deployment.
+        Generate a signed license key for a customer with a specific tier.
+        This would be called by the licensing server on payment.
         """
+        tier_config = TIER_FEATURES.get(tier, TIER_FEATURES[Tier.SOLO])
         data = {
             'customer': customer,
-            'max_stores': max_stores,
-            'max_cameras': max_cameras,
+            'tier': tier,
+            'max_stores': tier_config['max_stores'],
+            'max_cameras': tier_config['max_cameras'],
             'expiry': (datetime.now() + timedelta(days=expiry_days)).isoformat(),
-            'features': features or ['cv_detection', 'sms_alerts', 'dashboard'],
+            'features': tier_config['features'],
             'issued': datetime.now().isoformat()
         }
         sig = self._generate_license_signature(data)
-        # Encode as: base64(data).signature
         import base64
         encoded = base64.b64encode(json.dumps(data).encode()).decode()
         return f"spevino-{encoded}-{sig}"
@@ -138,8 +191,9 @@ class LicenseManager:
                         if datetime.now() < expiry:
                             self._status = LicenseStatus.ACTIVE
                             self._license_data = data
+                            self._tier = data.get('tier', Tier.SOLO)
                             self._save_state()
-                            logger.info(f"License ACTIVE for {data['customer']} until {data['expiry']}")
+                            logger.info(f"License ACTIVE - {data.get('tier', 'unknown')} tier for {data['customer']} until {data['expiry']}")
                             return self._status
                         else:
                             self._status = LicenseStatus.EXPIRED
@@ -182,15 +236,53 @@ class LicenseManager:
     @property
     def can_alert(self) -> bool:
         """Are SMS alerts allowed?"""
-        return self._status == LicenseStatus.ACTIVE
+        return self._status == LicenseStatus.ACTIVE and self.has_feature("sms_alerts")
+    
+    @property
+    def tier(self) -> str:
+        """Get current license tier."""
+        return self._tier
+    
+    def has_feature(self, feature: str) -> bool:
+        """Check if the current license tier includes a specific feature."""
+        if self._status == LicenseStatus.ACTIVE and self._license_data:
+            features = self._license_data.get('features', [])
+            return feature in features
+        # During grace period, only Solo features work
+        solo_features = TIER_FEATURES[Tier.SOLO]['features']
+        return feature in solo_features
+    
+    def get_tier_config(self) -> dict:
+        """Get the feature config for the current tier."""
+        if self._status == LicenseStatus.ACTIVE and self._license_data:
+            tier_name = self._license_data.get('tier', Tier.SOLO)
+            return TIER_FEATURES.get(tier_name, TIER_FEATURES[Tier.SOLO])
+        return TIER_FEATURES[Tier.SOLO]  # Grace period = Solo features
+    
+    def can_add_store(self, current_store_count: int) -> bool:
+        """Check if another store can be added under current license."""
+        max_stores = self.get_tier_config()['max_stores']
+        return current_store_count < max_stores
+    
+    def can_add_camera(self, current_camera_count: int) -> bool:
+        """Check if another camera can be added under current license."""
+        max_cameras = self.get_tier_config()['max_cameras']
+        return current_camera_count < max_cameras
     
     def get_status_info(self) -> Dict:
         """Get full license status for API response."""
+        tier_config = self.get_tier_config()
         info = {
             'status': self._status,
+            'tier': self.tier,
+            'tier_name': self.tier.replace('_', ' ').title() if self.tier else 'Solo',
+            'price': tier_config['price'],
             'is_active': self.is_active,
             'can_detect': self.can_detect,
             'can_alert': self.can_alert,
+            'max_stores': tier_config['max_stores'],
+            'max_cameras': tier_config['max_cameras'],
+            'features': tier_config['features'],
         }
         
         if self._license_data:
