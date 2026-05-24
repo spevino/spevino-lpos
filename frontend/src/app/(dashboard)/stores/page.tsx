@@ -1,34 +1,66 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Store, Plus, Search, MapPin, ChevronRight } from 'lucide-react';
+import { Store, Plus, Search, MapPin, ChevronRight, AlertCircle, ArrowUpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { useLicense } from '@/hooks/useLicense';
+import { cn } from '@/lib/utils';
 
 export default function StoresPage() {
+  const { license } = useLicense();
   const [stores, setStores] = useState<any[]>([]);
 
   useEffect(() => {
     // Mock data
     setStores([
       { id: '1', name: 'QuickMart #42', address: '123 Main St, Austin TX', camera_count: 4, status: 'Active' },
-      { id: '2', name: 'Shell Station - Oak Dr', address: '456 Oak Dr, Austin TX', camera_count: 8, status: 'Active' },
-      { id: '3', name: 'Corner Store 7', address: '789 Pine St, Austin TX', camera_count: 2, status: 'Warning' },
     ]);
   }, []);
+
+  const atLimit = license ? stores.length >= license.max_stores : false;
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">Stores</h1>
-          <p className="text-slate-400 text-sm mt-1">Manage your monitored locations</p>
+          <p className="text-slate-400 text-sm mt-1">
+            Manage your monitored locations ({stores.length}/{license?.max_stores || 1})
+          </p>
         </div>
-        <button className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+        <button 
+          disabled={atLimit}
+          className={cn(
+            "flex items-center px-4 py-2 rounded-lg transition-colors",
+            atLimit 
+              ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700" 
+              : "bg-blue-600 hover:bg-blue-700 text-white"
+          )}
+        >
           <Plus className="h-5 w-5 mr-2" />
           Add Store
         </button>
       </div>
+
+      {atLimit && (
+        <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center space-x-3">
+            <AlertCircle className="h-5 w-5 text-amber-500" />
+            <div>
+              <p className="text-sm font-semibold text-amber-200">Store Limit Reached</p>
+              <p className="text-xs text-amber-400/80">You have used all {license?.max_stores} stores available in the {license?.tier_name} plan.</p>
+            </div>
+          </div>
+          <Link 
+            href="/settings/license"
+            className="flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors whitespace-nowrap"
+          >
+            <ArrowUpCircle className="h-4 w-4 mr-2" />
+            Upgrade to Add More
+          </Link>
+        </div>
+      )}
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />

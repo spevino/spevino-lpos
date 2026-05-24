@@ -17,7 +17,7 @@ const navigation = [
   { name: 'Stores', href: '/stores', icon: Store },
   { name: 'Events', href: '/events', icon: ShieldAlert },
   { name: 'Cameras', href: '/cameras', icon: Camera },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Subscription', href: '/settings/license', icon: Settings },
 ];
 
 export default function Sidebar() {

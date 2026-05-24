@@ -27,54 +27,68 @@ class LicenseStatus:
     INVALID = "invalid"
     DISABLED = "disabled"
 
-# 5-Tier Subscription Model — from approved business plan
+# 6-Tier Subscription Model — owner-approved pricing
 class Tier:
-    SOLO = "solo"           # $49/mo  — 1 store, 2 cams, basic detection
-    PRO = "pro"             # $149/mo — 1 store, 6 cams, +SMS, +restricted area
-    BUSINESS = "business"   # $399/mo — 3 stores, 15 cams, +cash register, +multi-store
-    ENTERPRISE = "enterprise"    # $999/mo — 10 stores, 50 cams, +custom zones, +badge
-    ENTERPRISE_PLUS = "enterprise_plus"  # $2,999/mo — unlimited, white-label, SLA
+    SOLO = "solo"               # $79/mo  — 1 location, 4 cams, basic detection
+    PRO = "pro"                 # $199/mo — 1 location, 12 cams, +SMS, +restricted area
+    GROWTH = "growth"           # $499/mo — multi-location SMB, 3 locs, 30 cams
+    BUSINESS = "business"       # $999/mo — 5 locations, 60 cams, advanced AI + analytics
+    ENTERPRISE = "enterprise"   # $2,500+/mo — 20 locs, 200 cams, custom integrations
+    GLOBAL = "global"           # $5k-$25k+/mo — international chains, unlimited
 
 TIER_FEATURES = {
     Tier.SOLO: {
         "max_stores": 1,
-        "max_cameras": 2,
+        "max_cameras": 4,
         "features": ["dashboard", "concealment_detection", "trajectory_detection", "object_abandonment"],
-        "price": 49,
+        "price": 79,
     },
     Tier.PRO: {
         "max_stores": 1,
-        "max_cameras": 6,
-        "features": ["dashboard", "concealment_detection", "trajectory_detection", 
+        "max_cameras": 12,
+        "features": ["dashboard", "concealment_detection", "trajectory_detection",
                      "object_abandonment", "sms_alerts", "restricted_area_detection", "wrong_way_flow"],
-        "price": 149,
+        "price": 199,
     },
-    Tier.BUSINESS: {
+    Tier.GROWTH: {
         "max_stores": 3,
-        "max_cameras": 15,
+        "max_cameras": 30,
         "features": ["dashboard", "concealment_detection", "trajectory_detection",
                      "object_abandonment", "sms_alerts", "restricted_area_detection",
                      "wrong_way_flow", "register_theft_detection", "multi_store", "api_access"],
-        "price": 399,
+        "price": 499,
     },
-    Tier.ENTERPRISE: {
-        "max_stores": 10,
-        "max_cameras": 50,
+    Tier.BUSINESS: {
+        "max_stores": 5,
+        "max_cameras": 60,
         "features": ["dashboard", "concealment_detection", "trajectory_detection",
                      "object_abandonment", "sms_alerts", "restricted_area_detection",
                      "wrong_way_flow", "register_theft_detection", "multi_store", "api_access",
-                     "custom_detection_zones", "employee_badge_integration", "dedicated_support"],
+                     "custom_detection_zones", "employee_badge_integration", "dedicated_support",
+                     "advanced_analytics"],
         "price": 999,
     },
-    Tier.ENTERPRISE_PLUS: {
+    Tier.ENTERPRISE: {
+        "max_stores": 20,
+        "max_cameras": 200,
+        "features": ["dashboard", "concealment_detection", "trajectory_detection",
+                     "object_abandonment", "sms_alerts", "restricted_area_detection",
+                     "wrong_way_flow", "register_theft_detection", "multi_store", "api_access",
+                     "custom_detection_zones", "employee_badge_integration", "dedicated_support",
+                     "advanced_analytics", "custom_integrations", "on_prem_deployment", "sla"],
+        "price": 2500,
+    },
+    Tier.GLOBAL: {
         "max_stores": 9999,
         "max_cameras": 9999,
         "features": ["dashboard", "concealment_detection", "trajectory_detection",
                      "object_abandonment", "sms_alerts", "restricted_area_detection",
                      "wrong_way_flow", "register_theft_detection", "multi_store", "api_access",
                      "custom_detection_zones", "employee_badge_integration", "dedicated_support",
-                     "white_label", "on_prem_deployment", "sla", "custom_model_training"],
-        "price": 2999,
+                     "advanced_analytics", "custom_integrations", "on_prem_deployment", "sla",
+                     "white_label", "multi_language", "global_compliance", "global_data_centers",
+                     "24_7_support", "custom_model_training"],
+        "price": 5000,
     },
 }
 

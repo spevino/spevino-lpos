@@ -32,12 +32,16 @@ def send_sms(to_number: str, body: str):
 
 import datetime
 
-def format_alert_message(store_name: str, camera_name: str, event_type: str, confidence: float, event_id: str, zone_type: str = None, register_id: str = None):
+def format_alert_message(store_name: str, camera_name: str, event_type: str, confidence: float, event_id: str, zone_type: str = None, register_id: str = None, camera_location: str = None):
     # Base message parts
+    cam_info = f"{camera_name}"
+    if camera_location:
+        cam_info += f" ({camera_location})"
+        
     lines = [
         f"🚨 Spevino LP-OS Alert",
         f"Store: {store_name}",
-        f"Camera: {camera_name}"
+        f"Camera: {cam_info}"
     ]
     
     # Time formatting (simplified to current time if we don't have event time, but better to use current)
@@ -49,8 +53,9 @@ def format_alert_message(store_name: str, camera_name: str, event_type: str, con
         zone = zone_type.replace('_', ' ') if zone_type else "restricted area"
         lines.append(f"Event: {event_desc} — {zone} entry ({int(confidence * 100)}% confidence)")
     elif event_type == 'cash_register_theft':
-        desc = "unauthorized void without customer" # Default logic from Architecture doc
-        lines.append(f"Event: {event_desc} — {desc} ({int(confidence * 100)}% confidence)")
+        desc = "Suspected cash theft"
+        reg = f" at Register {register_id}" if register_id else ""
+        lines.append(f"Event: {event_desc}{reg} — {desc} ({int(confidence * 100)}% confidence)")
     else:
         lines.append(f"Event: {event_desc} ({int(confidence * 100)}% confidence)")
         

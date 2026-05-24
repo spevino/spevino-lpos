@@ -4,7 +4,7 @@ from typing import List, Optional
 import json
 import datetime
 
-import schemas, crud, auth, sms, license
+import schemas, crud, auth, sms, license, gating
 
 app = FastAPI(title="Spevino API")
 
@@ -86,6 +86,7 @@ def read_stores(current_user: dict = Depends(get_current_user)):
 
 @app.post("/stores", response_model=schemas.Store)
 def create_store(store: schemas.StoreCreate, current_user: dict = Depends(get_current_user)):
+    gating.check_store_limit()
     return crud.create_store(store_schema=store, owner_id=current_user['id'])
 
 @app.get("/stores/{store_id}", response_model=schemas.Store)
@@ -108,6 +109,7 @@ def create_camera(store_id: str, camera: schemas.CameraCreate, current_user: dic
     store = crud.get_store(store_id)
     if not store or store['owner_id'] != current_user['id']:
         raise HTTPException(status_code=403, detail="Not authorized")
+    gating.check_camera_limit(store_id)
     return crud.create_camera(camera_schema=camera, store_id=store_id)
 
 # Events (Ingestion & Listing)
@@ -118,6 +120,16 @@ def read_events(store_id: Optional[str] = None, camera_id: Optional[str] = None,
 
 @app.post("/events", response_model=schemas.Event)
 async def create_event(event: schemas.EventCreate, background_tasks: BackgroundTasks):
+    # Check if event type is allowed in this tier
+    gating.check_event_type_access(event.event_type)
+
+    # Find owner to check tier gating
+    store = crud.get_store(event.store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+    
+    owner = crud.get_user_by_id(store['owner_id']) # I'll add this to crud.py
+    
     # License check — if detection is paused, reject events
     if not license.license_manager.can_detect:
         raise HTTPException(
@@ -127,13 +139,16 @@ async def create_event(event: schemas.EventCreate, background_tasks: BackgroundT
     
     db_event = crud.create_event(event_schema=event)
     
-    # Broadcast via WebSocket
+    # Broadcast via WebSocket (including tier)
+    status_info = license.license_manager.get_status_info()
     await manager.broadcast(json.dumps({
         "type": "new_event",
-        "data": db_event
+        "data": db_event,
+        "tier": status_info.get('tier'),
+        "tier_name": status_info.get('tier_name')
     }))
 
-    # Trigger SMS alert if confidence is high (only if license allows alerts)
+    # Trigger SMS alert if confidence is high (only if tier and license allows alerts)
     if db_event['confidence'] >= 0.75 and license.license_manager.can_alert:
         background_tasks.add_task(process_alerts, db_event['id'])
     
@@ -184,7 +199,8 @@ async def process_alerts(event_id: str):
             confidence=event['confidence'],
             event_id=event['id'],
             zone_type=event.get('zone_type'),
-            register_id=event.get('register_id')
+            register_id=event.get('register_id'),
+            camera_location=event.get('camera_location')
         )
         
         twilio_sid = sms.send_sms(owner_phone, message)
@@ -194,13 +210,16 @@ async def process_alerts(event_id: str):
         else:
             crud.update_alert_status(db_alert['id'], "failed")
         
-        # Notify via WebSocket too
+        # Notify via WebSocket too (including tier)
+        status_info = license.license_manager.get_status_info()
         await manager.broadcast(json.dumps({
             "type": "new_alert",
             "data": {
                 "event_id": event_id,
                 "message": message
-            }
+            },
+            "tier": status_info.get('tier'),
+            "tier_name": status_info.get('tier_name')
         }))
 
 # WebSockets

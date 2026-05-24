@@ -8,14 +8,19 @@ import {
   ChevronLeft,
   Maximize2,
   RefreshCw,
-  Play
+  Play,
+  Plus,
+  AlertCircle,
+  ArrowUpCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { formatDate, cn } from '@/lib/utils';
+import { useLicense } from '@/hooks/useLicense';
 
 export default function StoreDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const { license } = useLicense();
   const [store, setStore] = useState<any>(null);
   const [cameras, setCameras] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
@@ -37,17 +42,58 @@ export default function StoreDetailPage({ params }: { params: Promise<{ id: stri
     ]);
   }, [id]);
 
+  const atLimit = license ? cameras.length >= license.max_cameras : false;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-4">
-        <Link href="/stores" className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
-          <ChevronLeft className="h-6 w-6" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold">{store?.name}</h1>
-          <p className="text-slate-400 text-sm">{store?.address}</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center space-x-4">
+          <Link href="/stores" className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
+            <ChevronLeft className="h-6 w-6" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold">{store?.name}</h1>
+            <p className="text-slate-400 text-sm">{store?.address}</p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-3">
+           <div className="text-right hidden md:block">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Camera Usage</p>
+              <p className="text-sm font-semibold">{cameras.length} / {license?.max_cameras || 0}</p>
+           </div>
+           <button 
+             disabled={atLimit}
+             className={cn(
+               "flex items-center px-4 py-2 rounded-lg transition-colors text-sm font-bold",
+               atLimit 
+                 ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700" 
+                 : "bg-blue-600 hover:bg-blue-700 text-white"
+             )}
+           >
+             <Plus className="h-4 w-4 mr-2" />
+             Add Camera
+           </button>
         </div>
       </div>
+
+      {atLimit && (
+        <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center space-x-3">
+            <AlertCircle className="h-5 w-5 text-amber-500" />
+            <div>
+              <p className="text-sm font-semibold text-amber-200">Camera Limit Reached</p>
+              <p className="text-xs text-amber-400/80">You have used all {license?.max_cameras} cameras allowed in the {license?.tier_name} plan for this location.</p>
+            </div>
+          </div>
+          <Link 
+            href="/settings/license"
+            className="flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors whitespace-nowrap"
+          >
+            <ArrowUpCircle className="h-4 w-4 mr-2" />
+            Upgrade Plan
+          </Link>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">

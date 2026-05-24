@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { ShieldAlert, Search, Filter, Calendar, ExternalLink } from 'lucide-react';
+import { ShieldAlert, Search, Filter, Calendar, ExternalLink, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import FeatureGate from '@/components/shared/FeatureGate';
+import { useLicense } from '@/hooks/useLicense';
 
 export default function EventsPage() {
+  const { hasFeature } = useLicense();
   const [events, setEvents] = useState<any[]>([]);
   const [filter, setFilter] = useState<string>('all');
 
@@ -30,10 +33,10 @@ export default function EventsPage() {
 
   const eventTypes = [
     { id: 'all', label: 'All Events' },
-    { id: 'shoplifting_suspected', label: 'Shoplifting' },
-    { id: 'restricted_area_breach', label: 'Restricted Area' },
-    { id: 'cash_register_theft', label: 'Cash Theft' },
-    { id: 'motion_anomaly', label: 'Motion' },
+    { id: 'shoplifting_suspected', label: 'Shoplifting', feature: 'concealment_detection' },
+    { id: 'restricted_area_breach', label: 'Restricted Area', feature: 'restricted_area_detection' },
+    { id: 'cash_register_theft', label: 'Cash Theft', feature: 'register_theft_detection' },
+    { id: 'motion_anomaly', label: 'Motion', feature: 'trajectory_detection' },
   ];
 
   return (
@@ -52,23 +55,32 @@ export default function EventsPage() {
       </div>
 
       <div className="flex overflow-x-auto pb-2 space-x-2 scrollbar-hide">
-        {eventTypes.map((type) => (
-          <button
-            key={type.id}
-            onClick={() => setFilter(type.id)}
-            className={cn(
-              "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap border transition-all",
-              filter === type.id
-                ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20"
-                : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300"
-            )}
-          >
-            {type.label}
-          </button>
-        ))}
+        {eventTypes.map((type) => {
+          const isLocked = type.feature && !hasFeature(type.feature);
+          return (
+            <button
+              key={type.id}
+              onClick={() => !isLocked && setFilter(type.id)}
+              className={cn(
+                "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap border transition-all flex items-center",
+                filter === type.id
+                  ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20"
+                  : isLocked
+                    ? "bg-slate-950 border-slate-900 text-slate-600 cursor-not-allowed"
+                    : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300"
+              )}
+            >
+              {isLocked && <Lock className="h-3 w-3 mr-2" />}
+              {type.label}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+      <FeatureGate 
+        feature={filter === 'all' ? 'dashboard' : eventTypes.find(t => t.id === filter)?.feature || 'dashboard'}
+      >
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -143,6 +155,7 @@ export default function EventsPage() {
           </table>
         </div>
       </div>
+      </FeatureGate>
     </div>
   );
 }

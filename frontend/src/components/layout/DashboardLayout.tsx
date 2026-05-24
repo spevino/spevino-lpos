@@ -1,20 +1,45 @@
+"use client";
+
 import Sidebar from './Sidebar';
+import { TIERS } from '@/lib/subscription';
+import { cn } from '@/lib/utils';
+import { useLicense } from '@/hooks/useLicense';
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { license, loading } = useLicense();
+  
+  const tierInfo = license ? TIERS[license.tier] : TIERS['solo'];
+
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100">
       <Sidebar />
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 border-b border-slate-800 flex items-center px-8 justify-between bg-slate-900/50 backdrop-blur-sm">
-          <h2 className="text-lg font-semibold">Overview</h2>
+          <div className="flex items-center space-x-4">
+            <h2 className="text-lg font-semibold">Overview</h2>
+            {!loading && license && (
+              <span className={cn(
+                "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider text-white",
+                tierInfo.color
+              )}>
+                {license.tier_name} Plan
+              </span>
+            )}
+            {loading && <div className="h-5 w-20 bg-slate-800 animate-pulse rounded" />}
+          </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-xs text-slate-400">System Live</span>
+              <div className={cn(
+                "w-2 h-2 rounded-full animate-pulse",
+                license?.is_active ? "bg-green-500" : "bg-red-500"
+              )} />
+              <span className="text-xs text-slate-400">
+                {license?.is_active ? "System Live" : "System Paused"}
+              </span>
             </div>
             <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center">
               <span className="text-xs font-bold">JD</span>

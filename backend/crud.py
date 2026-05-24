@@ -13,6 +13,10 @@ def get_user_by_email(email: str):
     rows = team_db_execute(f"SELECT * FROM users WHERE email = {escape(email)}")
     return rows[0] if rows else None
 
+def get_user_by_id(user_id: str):
+    rows = team_db_execute(f"SELECT * FROM users WHERE id = {escape(user_id)}")
+    return rows[0] if rows else None
+
 def create_user(user_schema):
     hashed_password = auth.get_password_hash(user_schema.password)
     user_id = str(uuid.uuid4())
@@ -155,7 +159,8 @@ def get_dashboard_stats(owner_id: str):
 def get_event_with_details(event_id: str):
     # Join event with store and owner to get phone number
     rows = team_db_execute(f"""
-        SELECT e.*, s.name as store_name, u.phone as owner_phone, u.id as owner_id, c.name as camera_name
+        SELECT e.*, s.name as store_name, u.phone as owner_phone, u.id as owner_id, 
+               c.name as camera_name, c.location_hint as camera_location
         FROM events e
         JOIN stores s ON e.store_id = s.id
         JOIN users u ON s.owner_id = u.id
